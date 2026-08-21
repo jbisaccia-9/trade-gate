@@ -1,0 +1,8 @@
+{
+  "cash": 4200.0,
+  "last_reconciled_sequence": 118,
+  "positions": {
+    "AAAA": {"quantity": 10, "value": 850.0},
+    "BBBB": {"quantity": 4, "value": 512.0}
+  }
+}

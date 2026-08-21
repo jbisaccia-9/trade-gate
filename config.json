@@ -1,0 +1,6 @@
+{
+  "_comment": "Synthetic example configuration - every value invented.",
+  "excluded_symbols": ["EXCL1", "EXCL2", "NOPE"],
+  "max_position_fraction": 0.10,
+  "daily_spend_cap": 500.0
+}

@@ -1,0 +1,1 @@
+# One dependency per line, e.g. Pillow>=10

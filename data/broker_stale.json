@@ -1,0 +1,7 @@
+{
+  "sequence": 121,
+  "positions": {
+    "AAAA": {"quantity": 12, "value": 1020.0},
+    "BBBB": {"quantity": 4, "value": 512.0}
+  }
+}
