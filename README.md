@@ -140,6 +140,19 @@ flowchart TB
     R --> RG{"report-grounding gate: every cited id exists in the log?"}
     RG -- "pass" --> PUB["review published: recommendations only, nothing mutated"]
     RG -- "fail" --> BLOCK["review refused: cites decisions that never happened"]
+
+    subgraph EVAL["Braintrust-shaped eval: data, task, scorers"]
+        DATAE["data: labeled orders + decision log"]
+        TASK["task: gate stack / overseer"]
+        SC["scorers: verdict_accuracy, gate_agreement, report_grounding, refusal_citation_coverage"]
+        DATAE --> TASK --> SC
+    end
+
+    LOG --> DATAE
+    R --> SC
+    SC -- "regression" --> CIFAIL["CI fails the build"]
+    SC -- "all 1.0" --> CIOK["CI green"]
+    SC -.-> BT["Braintrust hosted tracking (optional obs extra)"]
 ```
 
 Two loops, two gates on their outputs: the order loop ends at the gate stack,
