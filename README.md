@@ -83,12 +83,13 @@ that never happened and asserts the gate refuses it
 
 ```mermaid
 flowchart TB
-    subgraph DATA["Market-data connectors — read-only, data in only"]
-        FIXQ["fixture quotes<br/>(CI / keyless)"]
+    subgraph DATA["Market-data connectors (read-only, data in only)"]
+        FIXQ["fixture quotes (CI, keyless)"]
         APIQ["REST quotes API"]
         MCPQ["MCP stdio client"]
-        SRV["brokerage MCP server<br/>(e.g. Robinhood: get_equity_quotes)"]
-        MCPQ <-->|"JSON-RPC:<br/>initialize · tools/call"| SRV
+        SRV["brokerage MCP server e.g. Robinhood get_equity_quotes"]
+        MCPQ -- "JSON-RPC: initialize, tools/call" --> SRV
+        SRV -- "quote payload" --> MCPQ
     end
 
     ORDER["proposed order"] --> GATES
@@ -97,28 +98,30 @@ flowchart TB
     MCPQ --> QUOTES
     QUOTES --> GATES
 
-    subgraph GATES["Order gates — all must pass"]
+    subgraph GATES["Order gates (all must pass)"]
         G1["exclusion-list"] --> G2["book-reconciled"]
-        G2 --> G3["cash-sufficient"] --> G4["position-size-cap"]
-        G4 --> G5["daily-spend-cap"] --> G6["quote-sanity"]
+        G2 --> G3["cash-sufficient"]
+        G3 --> G4["position-size-cap"]
+        G4 --> G5["daily-spend-cap"]
+        G5 --> G6["quote-sanity"]
     end
 
-    GATES -->|"all pass"| CLEAR["ORDER CLEARED"]
-    GATES -->|"any fail"| REFUSE["ORDER REFUSED — nothing executes"]
-    GATES --> LOG["decision log<br/>(id · order · failed gates)"]
+    GATES -- "all pass" --> CLEAR["ORDER CLEARED"]
+    GATES -- "any fail" --> REFUSE["ORDER REFUSED, nothing executes"]
+    GATES --> LOG["decision log (id, order, failed gates)"]
 
-    subgraph OVR["Overseer — recommend-only agentic loop"]
-        M["model<br/>(scripted for CI · Claude live)"]
-        M -->|"tool_use"| T["read-only tools:<br/>get_gate_stats · get_decision_log · get_quotes"]
-        T -->|"tool_result"| M
-        M -->|"final text"| R["overseer report<br/>(every claim cites decision ids)"]
+    subgraph OVR["Overseer (recommend-only agentic loop)"]
+        M["model: scripted for CI, Claude live"]
+        M -- "tool_use" --> T["read-only tools: get_gate_stats, get_decision_log, get_quotes"]
+        T -- "tool_result" --> M
+        M -- "final text" --> R["overseer report, every claim cites decision ids"]
     end
 
     LOG --> T
     QUOTES --> T
-    R --> RG{"report-grounding gate:<br/>every cited id exists in the log?"}
-    RG -->|"pass"| PUB["review published —<br/>recommendations only, nothing mutated"]
-    RG -->|"fail"| BLOCK["review refused<br/>(cites decisions that never happened)"]
+    R --> RG{"report-grounding gate: every cited id exists in the log?"}
+    RG -- "pass" --> PUB["review published: recommendations only, nothing mutated"]
+    RG -- "fail" --> BLOCK["review refused: cites decisions that never happened"]
 ```
 
 Two loops, two gates on their outputs: the order loop ends at the gate stack,
