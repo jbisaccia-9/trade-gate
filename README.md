@@ -79,6 +79,24 @@ that never happened and asserts the gate refuses it
 (`! python -m tradegate overseer hallucinating`). Live backend: Claude via the
 `anthropic` SDK (`pip install ".[live]"`); scripted policy for keyless CI.
 
+## Eval structure (Braintrust-shaped)
+
+The whole stack is scored the way an eval platform scores it — `data → task →
+scorers` — in the exact shape of Braintrust's `Eval(name, data, task, scores)`
+contract, so the identical suite runs two ways: keyless and local in CI
+(`python -m tradegate eval`, which fails the build on any regression), or
+pushed to Braintrust for hosted tracking (`pip install ".[obs]"` +
+`BRAINTRUST_API_KEY`).
+
+| suite | task | scorers |
+|---|---|---|
+| gates | run the full gate stack on labeled orders | `verdict_accuracy`, `gate_agreement` (exact failed-gate set) |
+| overseer | generate the review | `report_grounding`, `refusal_citation_coverage` |
+
+The gates are deterministic — their eval exists to catch **regression**, which
+is what an eval is for: change a threshold, reorder a gate, and the suite says
+so before the change ships.
+
 ## The flow, end to end
 
 ```mermaid

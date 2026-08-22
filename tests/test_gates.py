@@ -101,3 +101,18 @@ def test_overseer_has_no_mutating_tools():
     registry, _, _ = make_tools()
     assert set(registry) == {"get_decision_log", "get_gate_stats", "get_quotes"}
     # Authority is structural: every tool is a read. Nothing writes, nothing trades.
+
+
+def test_eval_suite_all_perfect():
+    from tradegate.evals import run_local
+    assert run_local() == 0
+
+
+def test_eval_catches_regression():
+    from tradegate.evals import gate_task, verdict_accuracy, gate_agreement
+    case = {"order": {"symbol": "EXCL1", "side": "buy", "quantity": 1, "limit_price": 10.0},
+            "expected": {"cleared": False, "failed_gates": ["exclusion-list"]}}
+    out = gate_task(case)
+    assert verdict_accuracy(case["expected"], out) == 1.0
+    # A regressed expectation must score 0 - the scorer is not a rubber stamp.
+    assert gate_agreement({"cleared": False, "failed_gates": ["daily-spend-cap"]}, out) == 0.0

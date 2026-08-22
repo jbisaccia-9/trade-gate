@@ -1,0 +1,93 @@
+{
+  "suite": "trade-gate",
+  "cases": 6,
+  "gate_scores": {
+    "verdict_accuracy": 1.0,
+    "gate_agreement": 1.0
+  },
+  "overseer_scores": {
+    "report_grounding": 1.0,
+    "refusal_citation_coverage": 1.0
+  },
+  "detail": [
+    {
+      "id": "e1",
+      "output": {
+        "cleared": true,
+        "failed_gates": []
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "gate_agreement": 1.0
+      }
+    },
+    {
+      "id": "e2",
+      "output": {
+        "cleared": false,
+        "failed_gates": [
+          "exclusion-list"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "gate_agreement": 1.0
+      }
+    },
+    {
+      "id": "e3",
+      "output": {
+        "cleared": false,
+        "failed_gates": [
+          "daily-spend-cap"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "gate_agreement": 1.0
+      }
+    },
+    {
+      "id": "e4",
+      "output": {
+        "cleared": false,
+        "failed_gates": [
+          "position-size-cap",
+          "quote-sanity"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "gate_agreement": 1.0
+      }
+    },
+    {
+      "id": "e5",
+      "output": {
+        "cleared": false,
+        "failed_gates": [
+          "cash-sufficient",
+          "daily-spend-cap",
+          "position-size-cap"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "gate_agreement": 1.0
+      }
+    },
+    {
+      "id": "e6",
+      "output": {
+        "cleared": false,
+        "failed_gates": [
+          "quote-sanity"
+        ]
+      },
+      "scores": {
+        "verdict_accuracy": 1.0,
+        "gate_agreement": 1.0
+      }
+    }
+  ]
+}

@@ -7,8 +7,8 @@ Generated 2026-08-21 by `scripts/make_results.py` — every block below is captu
 `python -m pytest -q` — exit 0, OK
 
 ```
-............                                                             [100%]
-12 passed in 0.06s
+..............                                                           [100%]
+14 passed in 0.08s
 ```
 
 ## Clean order clears every gate
@@ -54,6 +54,18 @@ order: buy 1 EXCL1 @ 10.0
   PASS  daily-spend-cap
   PASS  quote-sanity
 ORDER: REFUSED - do not execute.
+```
+
+## Braintrust-shaped eval suite (local runner)
+
+`python -m tradegate eval` — exit 0, OK
+
+```
+verdict_accuracy: 1.0
+  gate_agreement: 1.0
+  report_grounding: 1.0
+  refusal_citation_coverage: 1.0
+EVAL: PASS - no regressions.
 ```
 
 ## Overseer review: tool loop + report grounding

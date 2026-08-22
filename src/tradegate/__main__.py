@@ -27,7 +27,12 @@ def main():
     cp.add_argument("--quotes", default="fixture")
     op = sub.add_parser("overseer")
     op.add_argument("backend", nargs="?", default="scripted")
+    sub.add_parser("eval")
     args = ap.parse_args()
+
+    if args.cmd == "eval":
+        from .evals import run_local
+        sys.exit(run_local())
 
     if args.cmd == "overseer":
         from .overseer import run_overseer, report_gate, get_model
