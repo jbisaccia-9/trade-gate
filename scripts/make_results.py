@@ -12,7 +12,7 @@ import subprocess
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 PY = str(ROOT / ".venv" / "bin" / "python")
 
-COMMANDS = [("Unit tests", ["-m", "pytest", "-q"], False), ("Clean order clears every gate", ["-m", "tradegate", "check", "orders/example_buy.json"], False), ("Stale broker snapshot refuses the same order", ["-m", "tradegate", "check", "orders/example_buy.json", "--broker", "data/broker_stale.json"], True), ("Excluded symbol refused", ["-m", "tradegate", "check", "orders/refused_excluded.json"], True)]
+COMMANDS = [("Unit tests", ["-m", "pytest", "-q"], False), ("Clean order clears every gate", ["-m", "tradegate", "check", "orders/example_buy.json"], False), ("Stale broker snapshot refuses the same order", ["-m", "tradegate", "check", "orders/example_buy.json", "--broker", "data/broker_stale.json"], True), ("Excluded symbol refused", ["-m", "tradegate", "check", "orders/refused_excluded.json"], True), ("Overseer review: tool loop + report grounding", ["-m", "tradegate", "overseer"], False), ("Hallucinating overseer: refused", ["-m", "tradegate", "overseer", "hallucinating"], True)]
 
 out = [f"# Results\n",
        f"Generated {datetime.date.today()} by `scripts/make_results.py` — "

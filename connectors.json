@@ -1,0 +1,10 @@
+{
+  "_comment": "Market-data connector config. 'mcp' example targets a Robinhood MCP server's quote tool; the committed default is the synthetic fixture. No connector in this repo places orders.",
+  "mode": "fixture",
+  "mcp": {
+    "command": ["python3", "tests/toy_mcp_server.py"],
+    "tool": "get_equity_quotes",
+    "symbol_arg": "symbols"
+  },
+  "quote_band_pct": 0.05
+}

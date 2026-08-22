@@ -1,8 +1,11 @@
+LICENSE
 README.md
 pyproject.toml
 src/tradegate/__init__.py
 src/tradegate/__main__.py
 src/tradegate/gates.py
+src/tradegate/overseer.py
+src/tradegate/quotes.py
 src/tradegate.egg-info/PKG-INFO
 src/tradegate.egg-info/SOURCES.txt
 src/tradegate.egg-info/dependency_links.txt

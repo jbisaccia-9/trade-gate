@@ -12,3 +12,6 @@ jobs:
       - run: python -m tradegate check orders/example_buy.json
       # The excluded order must be REFUSED - CI asserts the refusal.
       - run: "! python -m tradegate check orders/refused_excluded.json"
+      - run: python -m tradegate overseer
+      # A hallucinating overseer must be refused by the report-grounding gate.
+      - run: "! python -m tradegate overseer hallucinating"

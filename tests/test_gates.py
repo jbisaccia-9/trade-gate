@@ -57,3 +57,47 @@ def test_all_failures_reported_not_just_first():
     ok, results = check_order(order(symbol="EXCL1", quantity=500), *fixtures("broker_stale.json"))
     failed = [n for n, p, _ in results if not p]
     assert set(failed) >= {"exclusion-list", "book-reconciled", "cash-sufficient"}
+
+
+def test_quote_sanity_refuses_drifted_limit():
+    from tradegate.gates import gate_quote_sanity
+    cfg = {"quote_band_pct": 0.05}
+    ok, _ = gate_quote_sanity({"symbol": "CCCC", "limit_price": 42.5}, cfg, None, None, None,
+                              quotes={"CCCC": 42.6})
+    assert ok
+    ok, why = gate_quote_sanity({"symbol": "CCCC", "limit_price": 30.0}, cfg, None, None, None,
+                                quotes={"CCCC": 42.6})
+    assert not ok and "band" in why
+    ok, why = gate_quote_sanity({"symbol": "ZZZZ", "limit_price": 10.0}, cfg, None, None, None,
+                                quotes={"ZZZZ": None})
+    assert not ok and "no live quote" in why
+
+
+def test_mcp_connector_end_to_end():
+    import sys
+    from tradegate.quotes import MCPQuotes
+    q = MCPQuotes([sys.executable, str(ROOT / "tests" / "toy_mcp_server.py")],
+                  "get_equity_quotes")
+    got = q.get(["CCCC", "AAAA", "ZZZZ"])
+    assert got["CCCC"] == 42.6 and got["AAAA"] == 85.0 and got["ZZZZ"] is None
+
+
+def test_overseer_reviews_and_grounds():
+    from tradegate.overseer import run_overseer, report_gate, ScriptedModel
+    report, valid = run_overseer(ScriptedModel())
+    assert "daily-spend-cap" in report and "[d3, d4]" in report
+    assert "no configuration was changed" in report.lower()
+    assert report_gate(report, valid) == 0
+
+
+def test_hallucinating_overseer_refused():
+    from tradegate.overseer import run_overseer, report_gate, HallucinatingModel
+    report, valid = run_overseer(HallucinatingModel())
+    assert report_gate(report, valid) == 1
+
+
+def test_overseer_has_no_mutating_tools():
+    from tradegate.overseer import make_tools
+    registry, _, _ = make_tools()
+    assert set(registry) == {"get_decision_log", "get_gate_stats", "get_quotes"}
+    # Authority is structural: every tool is a read. Nothing writes, nothing trades.

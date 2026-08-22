@@ -1,0 +1,5 @@
+{"id": "d1", "order": {"symbol": "CCCC", "side": "buy", "quantity": 3, "limit_price": 42.5}, "cleared": true, "failed_gates": []}
+{"id": "d2", "order": {"symbol": "EXCL1", "side": "buy", "quantity": 1, "limit_price": 10.0}, "cleared": false, "failed_gates": ["exclusion-list"]}
+{"id": "d3", "order": {"symbol": "CCCC", "side": "buy", "quantity": 8, "limit_price": 42.5}, "cleared": false, "failed_gates": ["daily-spend-cap"]}
+{"id": "d4", "order": {"symbol": "DDDD", "side": "buy", "quantity": 2, "limit_price": 209.0}, "cleared": false, "failed_gates": ["daily-spend-cap"]}
+{"id": "d5", "order": {"symbol": "AAAA", "side": "buy", "quantity": 1, "limit_price": 60.0}, "cleared": false, "failed_gates": ["position-size-cap", "quote-sanity"]}

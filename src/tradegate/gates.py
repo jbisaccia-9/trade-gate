@@ -51,6 +51,22 @@ def gate_daily_spend(order, config, book, broker, state):
                 f"cap is {config['daily_spend_cap']:.2f}") if not ok else ""
 
 
+def gate_quote_sanity(order, config, book, broker, state, quotes=None):
+    """Limit price must sit within the configured band of the live quote.
+    A missing quote refuses too - no price, no trade. This is the gate the
+    market-data connectors feed."""
+    if quotes is None:
+        return True, ""          # no quote source wired for this check run
+    q = quotes.get(order["symbol"])
+    if q is None:
+        return False, f"no live quote available for {order['symbol']}"
+    band = config.get("quote_band_pct", 0.05)
+    drift = abs(order["limit_price"] - q) / q
+    ok = drift <= band
+    return ok, (f"limit {order['limit_price']:.2f} is {drift:.1%} from live quote "
+                f"{q:.2f} (band {band:.0%})") if not ok else ""
+
+
 GATES = [
     ("exclusion-list", gate_exclusion),
     ("book-reconciled", gate_reconciled),
@@ -60,12 +76,27 @@ GATES = [
 ]
 
 
-def check_order(order, config, book, broker, state):
+def check_order(order, config, book, broker, state, quotes=None, log_path=None):
     """Run every gate; an order passes only if all of them do. All failures are
-    reported, not just the first - a refused order should teach something."""
+    reported, not just the first, and every decision is appended to the log the
+    overseer reads."""
     results, ok_all = [], True
     for name, fn in GATES:
         ok, why = fn(order, config, book, broker, state)
         results.append((name, ok, why))
         ok_all &= ok
+    ok, why = gate_quote_sanity(order, config, book, broker, state, quotes)
+    results.append(("quote-sanity", ok, why))
+    ok_all &= ok
+    if log_path:
+        import json, pathlib
+        lp = pathlib.Path(log_path)
+        lp.parent.mkdir(exist_ok=True)
+        seq = sum(1 for _ in lp.open()) + 1 if lp.exists() else 1
+        with lp.open("a") as f:
+            f.write(json.dumps({"id": f"d{seq}", "order": order, "cleared": ok_all,
+                                "failed_gates": [n for n, o, _ in results if not o]}) + "\n")
     return ok_all, results
+
+
+

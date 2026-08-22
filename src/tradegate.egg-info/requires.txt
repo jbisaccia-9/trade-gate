@@ -1,3 +1,6 @@
 
 [dev]
 pytest
+
+[live]
+anthropic

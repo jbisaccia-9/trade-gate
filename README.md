@@ -28,6 +28,7 @@ One thesis throughout: nothing ships until it passes a gate.
 | cash-sufficient | order cost exceeds settled cash |
 | position-size-cap | position would exceed a fixed fraction of portfolio value |
 | daily-spend-cap | today's cumulative spend would exceed the cap |
+| quote-sanity | the limit price drifts beyond ±5% of the live quote — or no quote exists |
 
 All failures are reported, not just the first — a refused order should teach
 something. CI runs the demo both ways: the clean order must clear, and the
@@ -45,6 +46,39 @@ order: buy 3 CCCC @ 42.5
 ORDER: REFUSED - do not execute.
 ```
 
+## Market-data connectors
+
+The quote-sanity gate is fed by pluggable connectors — data flows **in**;
+there is deliberately no order-placement connector anywhere in this repo:
+
+| mode | source |
+|---|---|
+| `fixture` | committed synthetic quotes (CI, keyless clones) |
+| `api` | any REST quotes endpoint (`QUOTES_API_URL` + `QUOTES_API_KEY`) |
+| `mcp` | a minimal MCP stdio client (newline-delimited JSON-RPC, stdlib only) that spawns a configured server and calls its quote tool — point `connectors.json` at a brokerage MCP server (e.g. a Robinhood MCP server's `get_equity_quotes`) for live analytics |
+
+CI exercises the MCP path end-to-end against a bundled toy server speaking
+the same protocol, so the client code that talks to a real brokerage server
+is the code the tests run.
+
+## The overseer
+
+Above the gates sits a monitoring agent — a **recommend-only overseer**
+patterned on running a real overseer over a real trading loop: graders grade,
+they do not steer. It reads the decision log and live quotes through tools
+(`get_decision_log`, `get_gate_stats`, `get_quotes`) and writes a review —
+refusal patterns, possible cap miscalibration, data-quality gaps — citing
+decision ids for every claim.
+
+Its authority is **structural, not rhetorical**: the overseer has no mutating
+tools. It cannot edit config, clear a refusal, or place an order — the test
+suite asserts the tool registry is read-only. And its report faces its own
+gate: **grounding** — every cited decision id must exist in the log it
+reviewed. CI runs a deliberately hallucinating backend that cites a decision
+that never happened and asserts the gate refuses it
+(`! python -m tradegate overseer hallucinating`). Live backend: Claude via the
+`anthropic` SDK (`pip install ".[live]"`); scripted policy for keyless CI.
+
 ## Quickstart
 
 ```
@@ -53,6 +87,8 @@ python -m venv .venv
 .venv/bin/pip install -e ".[dev]"
 .venv/bin/python -m pytest -q
 .venv/bin/python -m tradegate check orders/example_buy.json
+QUOTES_MODE=mcp .venv/bin/python -m tradegate check orders/example_buy.json
+.venv/bin/python -m tradegate overseer
 ```
 
 Educational code about guardrail design. Not a trading system, not financial
