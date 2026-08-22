@@ -79,6 +79,52 @@ that never happened and asserts the gate refuses it
 (`! python -m tradegate overseer hallucinating`). Live backend: Claude via the
 `anthropic` SDK (`pip install ".[live]"`); scripted policy for keyless CI.
 
+## The flow, end to end
+
+```mermaid
+flowchart TB
+    subgraph DATA["Market-data connectors — read-only, data in only"]
+        FIXQ["fixture quotes<br/>(CI / keyless)"]
+        APIQ["REST quotes API"]
+        MCPQ["MCP stdio client"]
+        SRV["brokerage MCP server<br/>(e.g. Robinhood: get_equity_quotes)"]
+        MCPQ <-->|"JSON-RPC:<br/>initialize · tools/call"| SRV
+    end
+
+    ORDER["proposed order"] --> GATES
+    FIXQ --> QUOTES["live quotes"]
+    APIQ --> QUOTES
+    MCPQ --> QUOTES
+    QUOTES --> GATES
+
+    subgraph GATES["Order gates — all must pass"]
+        G1["exclusion-list"] --> G2["book-reconciled"]
+        G2 --> G3["cash-sufficient"] --> G4["position-size-cap"]
+        G4 --> G5["daily-spend-cap"] --> G6["quote-sanity"]
+    end
+
+    GATES -->|"all pass"| CLEAR["ORDER CLEARED"]
+    GATES -->|"any fail"| REFUSE["ORDER REFUSED — nothing executes"]
+    GATES --> LOG["decision log<br/>(id · order · failed gates)"]
+
+    subgraph OVR["Overseer — recommend-only agentic loop"]
+        M["model<br/>(scripted for CI · Claude live)"]
+        M -->|"tool_use"| T["read-only tools:<br/>get_gate_stats · get_decision_log · get_quotes"]
+        T -->|"tool_result"| M
+        M -->|"final text"| R["overseer report<br/>(every claim cites decision ids)"]
+    end
+
+    LOG --> T
+    QUOTES --> T
+    R --> RG{"report-grounding gate:<br/>every cited id exists in the log?"}
+    RG -->|"pass"| PUB["review published —<br/>recommendations only, nothing mutated"]
+    RG -->|"fail"| BLOCK["review refused<br/>(cites decisions that never happened)"]
+```
+
+Two loops, two gates on their outputs: the order loop ends at the gate stack,
+the overseer loop ends at the grounding gate. The overseer has no edge back
+into config or orders — that absence is the design.
+
 ## Quickstart
 
 ```
