@@ -3,6 +3,7 @@
 quotes - exists so the MCP client path is exercised end-to-end in CI with the
 same protocol a real brokerage MCP server speaks."""
 import json
+import os
 import pathlib
 import sys
 
@@ -17,8 +18,11 @@ for line in sys.stdin:
                   "serverInfo": {"name": "toy-quotes", "version": "0.1"}}
     elif msg["method"] == "tools/call":
         syms = msg["params"]["arguments"]["symbols"]
-        result = {"content": [{"type": "text",
-                               "text": json.dumps({s: QUOTES.get(s) for s in syms})}]}
+        if os.environ.get("TOY_MCP_BAD_QUOTES"):
+            text = "{bad quote data"
+        else:
+            text = json.dumps({s: QUOTES.get(s) for s in syms})
+        result = {"content": [{"type": "text", "text": text}]}
     else:
         result = {}
     sys.stdout.write(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": result}) + "\n")

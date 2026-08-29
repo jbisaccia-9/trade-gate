@@ -82,6 +82,19 @@ def test_mcp_connector_end_to_end():
     assert got["CCCC"] == 42.6 and got["AAAA"] == 85.0 and got["ZZZZ"] is None
 
 
+def test_bad_mcp_quote_data_refuses_order(monkeypatch):
+    import sys
+    from tradegate.quotes import MCPQuotes
+    monkeypatch.setenv("TOY_MCP_BAD_QUOTES", "1")
+    q = MCPQuotes([sys.executable, str(ROOT / "tests" / "toy_mcp_server.py")],
+                  "get_equity_quotes")
+    ok, results = check_order(order(), *fixtures(), quotes=q.get(["CCCC"]))
+    by_gate = {n: (p, why) for n, p, why in results}
+    assert not ok
+    assert by_gate["quote-sanity"][0] is False
+    assert "no live quote" in by_gate["quote-sanity"][1]
+
+
 def test_overseer_reviews_and_grounds():
     from tradegate.overseer import run_overseer, report_gate, ScriptedModel
     report, valid = run_overseer(ScriptedModel())

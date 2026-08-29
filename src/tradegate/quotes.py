@@ -14,6 +14,7 @@ This module READS market data. There is deliberately no order-placement
 connector anywhere in this repo.
 """
 import json
+import math
 import os
 import pathlib
 import subprocess
@@ -58,21 +59,37 @@ class MCPQuotes:
         if "id" in msg:
             return json.loads(proc.stdout.readline())
 
+    @staticmethod
+    def _quote_or_none(value):
+        if isinstance(value, bool):
+            return None
+        try:
+            quote = float(value)
+        except (TypeError, ValueError):
+            return None
+        return quote if math.isfinite(quote) else None
+
     def get(self, symbols):
+        missing = {s: None for s in symbols}
         proc = subprocess.Popen(self.command, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE)
         try:
-            self._rpc(proc, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
-                             "params": {"protocolVersion": "2025-06-18",
-                                        "capabilities": {},
-                                        "clientInfo": {"name": "tradegate", "version": "0.2"}}})
-            self._rpc(proc, {"jsonrpc": "2.0", "method": "notifications/initialized"})
-            resp = self._rpc(proc, {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                                    "params": {"name": self.tool,
-                                               "arguments": {self.symbol_arg: list(symbols)}}})
-            text = resp["result"]["content"][0]["text"]
-            data = json.loads(text)
-            return {s: data.get(s) for s in symbols}
+            try:
+                self._rpc(proc, {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                                 "params": {"protocolVersion": "2025-06-18",
+                                            "capabilities": {},
+                                            "clientInfo": {"name": "tradegate", "version": "0.2"}}})
+                self._rpc(proc, {"jsonrpc": "2.0", "method": "notifications/initialized"})
+                resp = self._rpc(proc, {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                                        "params": {"name": self.tool,
+                                                   "arguments": {self.symbol_arg: list(symbols)}}})
+                text = resp["result"]["content"][0]["text"]
+                data = json.loads(text)
+            except (BrokenPipeError, json.JSONDecodeError, KeyError, TypeError):
+                return missing
+            if not isinstance(data, dict):
+                return missing
+            return {s: self._quote_or_none(data.get(s)) for s in symbols}
         finally:
             proc.terminate()
 
