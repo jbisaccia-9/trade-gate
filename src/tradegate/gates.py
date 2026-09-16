@@ -8,6 +8,10 @@ broker's snapshot exactly, nothing trades, no matter how good the signal looks.
 All tickers, balances, and caps in this repo are synthetic fixtures.
 """
 
+import pandas_market_calendars as xcals
+import datetime
+from zoneinfo import ZoneInfo
+
 def gate_exclusion(order, config, *_):
     """Hard denylist. An excluded ticker is refused unconditionally."""
     ok = order["symbol"] not in config["excluded_symbols"]
@@ -67,12 +71,28 @@ def gate_quote_sanity(order, config, book, broker, state, quotes=None):
                 f"{q:.2f} (band {band:.0%})") if not ok else ""
 
 
+def gate_market_hours(order, config, book, broker, state):
+    """Gate orders to only the market hours"""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    nyse = xcals.get_calendar("NYSE")
+    sch = nyse.schedule(start_date=now.date(), end_date=now.date(), start="pre", end="post")
+
+    if sch.empty:
+        return False, "Market Closed"
+
+    row = sch.iloc[0]
+    ok = row["pre"] <= now <= row["post"]
+
+    return ok, (f"Market closed") if not ok else ""
+
+
 GATES = [
     ("exclusion-list", gate_exclusion),
     ("book-reconciled", gate_reconciled),
     ("cash-sufficient", gate_cash),
     ("position-size-cap", gate_position_size),
     ("daily-spend-cap", gate_daily_spend),
+    ("gate-market-hours", gate_market_hours)
 ]
 
 

@@ -1,1 +1,2 @@
 # One dependency per line, e.g. Pillow>=10
+exchange-calenders
