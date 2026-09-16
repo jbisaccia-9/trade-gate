@@ -8,7 +8,7 @@ broker's snapshot exactly, nothing trades, no matter how good the signal looks.
 All tickers, balances, and caps in this repo are synthetic fixtures.
 """
 
-import pandas_market_calendars as xcals
+import calendar
 import datetime
 from zoneinfo import ZoneInfo
 
@@ -71,19 +71,95 @@ def gate_quote_sanity(order, config, book, broker, state, quotes=None):
                 f"{q:.2f} (band {band:.0%})") if not ok else ""
 
 
+def _nth_weekday(year, month, weekday, n):
+    """Date of the n-th <weekday> of a month (Mon=0), e.g. 3rd Monday of Jan."""
+    first = datetime.date(year, month, 1)
+    return first + datetime.timedelta(days=(weekday - first.weekday()) % 7 + 7 * (n - 1))
+
+
+def _last_weekday(year, month, weekday):
+    """Date of the last <weekday> of a month, e.g. last Monday of May."""
+    end = datetime.date(year, month, calendar.monthrange(year, month)[1])
+    return end - datetime.timedelta(days=(end.weekday() - weekday) % 7)
+
+
+def _easter(year):
+    """Easter Sunday by the anonymous Gregorian computus - pure arithmetic,
+    needed only to place Good Friday (two days earlier)."""
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    g = (8 * b + 13) // 25
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month, day = divmod(h + l - 7 * m + 114, 31)
+    return datetime.date(year, month, day + 1)
+
+
+def _observed(d):
+    """NYSE observance shift: a Saturday holiday closes the Friday before, a
+    Sunday holiday closes the Monday after. Exception: when the Friday would
+    fall in the previous year (Jan 1 on a Saturday) there is no observance."""
+    if d.weekday() == 5:
+        prev = d - datetime.timedelta(days=1)
+        return prev if prev.year == d.year else None
+    if d.weekday() == 6:
+        return d + datetime.timedelta(days=1)
+    return d
+
+
+def nyse_holidays(year):
+    """Observed NYSE full-closure holidays, computed from the exchange's rules
+    so the gate needs no market-calendar dependency. Early-close half days are
+    not modeled - this gate only answers open/closed for the regular session."""
+    fixed = [datetime.date(year, 1, 1),    # New Year's Day
+             datetime.date(year, 6, 19),   # Juneteenth
+             datetime.date(year, 7, 4),    # Independence Day
+             datetime.date(year, 12, 25)]  # Christmas
+    floating = [_nth_weekday(year, 1, 0, 3),    # MLK Day: 3rd Mon Jan
+                _nth_weekday(year, 2, 0, 3),    # Washington's Birthday: 3rd Mon Feb
+                _easter(year) - datetime.timedelta(days=2),  # Good Friday
+                _last_weekday(year, 5, 0),      # Memorial Day: last Mon May
+                _nth_weekday(year, 9, 0, 1),    # Labor Day: 1st Mon Sep
+                _nth_weekday(year, 11, 3, 4)]   # Thanksgiving: 4th Thu Nov
+    observed = {_observed(d) for d in fixed} | set(floating)
+    observed.discard(None)
+    return observed
+
+
+NYSE_OPEN = datetime.time(9, 30)
+NYSE_CLOSE = datetime.time(16, 0)
+
+
 def gate_market_hours(order, config, book, broker, state):
-    """Gate orders to only the market hours"""
-    now = datetime.datetime.now(datetime.timezone.utc)
-    nyse = xcals.get_calendar("NYSE")
-    sch = nyse.schedule(start_date=now.date(), end_date=now.date(), start="pre", end="post")
+    """Orders clear only during the NYSE regular session: 9:30-16:00 ET on a
+    weekday that is not an observed holiday.
 
-    if sch.empty:
-        return False, "Market Closed"
-
-    row = sch.iloc[0]
-    ok = row["pre"] <= now <= row["post"]
-
-    return ok, (f"Market closed") if not ok else ""
+    Determinism rule: the decision time comes from state["as_of"] (an ISO-8601
+    timestamp with a timezone) when the state provides one, so fixtures, tests,
+    and CI always see the same market. A live state simply omits as_of and the
+    gate uses the wall clock. An unparseable as_of refuses the order - a gate
+    that cannot tell what time it is must not wave trades through."""
+    as_of = state.get("as_of")
+    if as_of is None:
+        now = datetime.datetime.now(datetime.timezone.utc)
+    else:
+        try:
+            now = datetime.datetime.fromisoformat(str(as_of).replace("Z", "+00:00"))
+        except ValueError:
+            return False, f"state as_of is not an ISO-8601 timestamp: {as_of!r}"
+        if now.tzinfo is None:
+            return False, f"state as_of must carry a timezone: {as_of!r}"
+    et = now.astimezone(ZoneInfo("America/New_York"))
+    if et.weekday() >= 5:
+        return False, f"market closed: {et.date()} is a weekend"
+    if et.date() in nyse_holidays(et.year):
+        return False, f"market closed: {et.date()} is an NYSE holiday"
+    ok = NYSE_OPEN <= et.time() < NYSE_CLOSE
+    return ok, (f"market closed: {et.strftime('%H:%M')} ET is outside the "
+                f"regular session 09:30-16:00") if not ok else ""
 
 
 GATES = [
@@ -92,7 +168,7 @@ GATES = [
     ("cash-sufficient", gate_cash),
     ("position-size-cap", gate_position_size),
     ("daily-spend-cap", gate_daily_spend),
-    ("gate-market-hours", gate_market_hours)
+    ("market-hours", gate_market_hours)
 ]
 
 
