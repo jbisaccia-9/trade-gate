@@ -53,6 +53,46 @@ def test_daily_spend_cap_refused():
     assert dict((n, p) for n, p, _ in results)["daily-spend-cap"] is False
 
 
+def test_market_hours_open_during_regular_session():
+    # Fixture state pins as_of to a Monday 10:30 ET - inside the session.
+    ok, results = check_order(order(), *fixtures())
+    assert dict((n, p) for n, p, _ in results)["market-hours"] is True
+
+
+def test_market_hours_refuses_weekend():
+    cfg, book, broker, state = fixtures()
+    state = dict(state, as_of="2026-09-12T14:30:00+00:00")  # a Saturday
+    ok, results = check_order(order(), cfg, book, broker, state)
+    by_gate = {n: (p, why) for n, p, why in results}
+    assert not ok and by_gate["market-hours"][0] is False
+    assert "weekend" in by_gate["market-hours"][1]
+
+
+def test_market_hours_refuses_overnight():
+    cfg, book, broker, state = fixtures()
+    # 02:51 UTC is 22:51 ET the previous evening - the exact time the CI run
+    # that motivated this determinism rule executed.
+    state = dict(state, as_of="2026-09-16T02:51:00+00:00")
+    ok, results = check_order(order(), cfg, book, broker, state)
+    assert dict((n, p) for n, p, _ in results)["market-hours"] is False
+
+
+def test_market_hours_refuses_observed_holiday():
+    cfg, book, broker, state = fixtures()
+    # July 4 2026 is a Saturday, so NYSE observes Friday July 3.
+    state = dict(state, as_of="2026-07-03T15:00:00+00:00")
+    ok, results = check_order(order(), cfg, book, broker, state)
+    by_gate = {n: (p, why) for n, p, why in results}
+    assert by_gate["market-hours"][0] is False
+    assert "holiday" in by_gate["market-hours"][1]
+
+
+def test_market_hours_refuses_unparseable_as_of():
+    from tradegate.gates import gate_market_hours
+    ok, why = gate_market_hours(order(), {}, None, None, {"as_of": "not-a-time"})
+    assert not ok and "ISO-8601" in why
+
+
 def test_all_failures_reported_not_just_first():
     ok, results = check_order(order(symbol="EXCL1", quantity=500), *fixtures("broker_stale.json"))
     failed = [n for n, p, _ in results if not p]
