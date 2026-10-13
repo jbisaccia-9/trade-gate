@@ -1,6 +1,6 @@
 # trade-gate
 
-[![ci](https://github.com/jbisaccia-9/trade-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/jbisaccia-9/trade-gate/actions) · [captured results](RESULTS.md)
+[![ci](https://github.com/jbisaccia-9/trade-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/jbisaccia-9/trade-gate/actions) · [captured results](RESULTS.md) · [reflection: why I shut down the real bot](REFLECTION.md)
 
 **Order-validation gates for an automated trader. Every trade must pass all of
 them — and a stale book refuses everything.**
